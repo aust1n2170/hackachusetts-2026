@@ -1,0 +1,657 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Boston Destination Scorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: dispatch console. Incident controls + map on the left, ranked recommendations on the right, hospital status board full width below. */
+:root {
+  --bg: #eef2f5;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --ink: #132130;
+  --muted: #566879;
+  --line: #d3dce4;
+  --accent: #0a58a8;          /* Star of Life blue */
+  --accent-soft: #e1ecf8;
+  --on-accent: #ffffff;
+  --delay: #b86e00;
+  --delay-soft: #fbefdc;
+  --critical: #bf3027;
+  --critical-soft: #fbe5e3;
+  --good: #1d7347;
+  --good-soft: #e0f2e8;
+  --land: #e8ece6;
+  --water: #cfdfec;
+  --road: #ffffff;
+  --road-edge: #c9d1cc;
+  --excluded: #c3ccd4;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c131a; --surface: #141e28; --surface-2: #19242f; --ink: #e4ecf3; --muted: #93a4b4; --line: #283645;
+    --accent: #5ea6ef; --accent-soft: #15304b; --on-accent: #08131e; --delay: #e9a646; --delay-soft: #3a2a12;
+    --critical: #f07468; --critical-soft: #3d1a18; --good: #55c78f; --good-soft: #12321f;
+    --land: #18222b; --water: #0f2b42; --road: #26323d; --road-edge: #2f3c48; --excluded: #3a4856;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c131a; --surface: #141e28; --surface-2: #19242f; --ink: #e4ecf3; --muted: #93a4b4; --line: #283645;
+  --accent: #5ea6ef; --accent-soft: #15304b; --on-accent: #08131e; --delay: #e9a646; --delay-soft: #3a2a12;
+  --critical: #f07468; --critical-soft: #3d1a18; --good: #55c78f; --good-soft: #12321f;
+  --land: #18222b; --water: #0f2b42; --road: #26323d; --road-edge: #2f3c48; --excluded: #3a4856;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+.brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.brand svg { flex: none; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 32px; line-height: 1; letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 62ch; }
+.sample { font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--delay); background: var(--delay-soft); border-radius: 4px; padding: 6px 10px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 920px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 16px 0; flex-wrap: wrap; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 21px; letter-spacing: 0.02em; margin: 0; }
+.label { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.panel-body { padding: 12px 16px 16px; display: grid; gap: 14px; }
+
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 8px; }
+legend { padding: 0; margin-bottom: 8px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { position: relative; }
+.pill input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.pill span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); font-weight: 500; font-size: 13px; cursor: pointer; transition: background .15s, border-color .15s; }
+.pill input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.pill input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pill .tc { font-family: var(--f-mono); font-size: 10px; opacity: .8; }
+
+.controls-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: end; }
+@media (max-width: 560px) { .controls-row { grid-template-columns: minmax(0, 1fr); } }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 6px 12px; font-size: 13px; font-weight: 500; background: var(--surface-2); cursor: pointer; border-right: 1px solid var(--line); }
+.seg label:last-child span { border-right: 0; }
+.seg input:checked + span { background: var(--ink); color: var(--surface); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+select, button, input[type="number"] { font: inherit; color: inherit; }
+select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); max-width: 100%; }
+
+.map-wrap { position: relative; border-top: 1px solid var(--line); }
+#map { display: block; width: 100%; height: auto; cursor: crosshair; border-radius: 0 0 10px 10px; }
+#map:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.map-note { position: absolute; left: 10px; bottom: 10px; font-size: 11.5px; color: var(--muted); background: color-mix(in srgb, var(--surface) 88%, transparent); padding: 4px 8px; border-radius: 6px; pointer-events: none; max-width: calc(100% - 20px); }
+.nb { fill: var(--muted); font-family: var(--f-mono); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; opacity: .75; }
+.waterlabel { fill: var(--accent); opacity: .55; font-family: var(--f-body); font-style: italic; font-size: 16px; }
+.shield { fill: var(--surface); stroke: var(--muted); stroke-width: 1.2; }
+.shield-t { fill: var(--ink); font-family: var(--f-mono); font-size: 12px; font-weight: 600; }
+.h-label { fill: var(--ink); font-family: var(--f-body); font-size: 17px; font-weight: 600; paint-order: stroke; stroke: var(--land); stroke-width: 5px; stroke-linejoin: round; }
+.h-label.out { fill: var(--muted); font-weight: 500; }
+.rank-t { fill: var(--on-accent); font-family: var(--f-display); font-weight: 700; font-size: 17px; }
+.scale-t { fill: var(--muted); font-family: var(--f-mono); font-size: 12px; }
+@media (max-width: 560px) {
+  .nb, .waterlabel { display: none; }
+  .h-label { display: none; }
+  .h-label.top { display: inline; font-size: 28px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pulse { animation: pulse 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes pulse { 0% { transform: scale(.6); opacity: .7; } 100% { transform: scale(2.2); opacity: 0; } }
+}
+
+/* Recommendations */
+.rule { font-size: 13px; color: var(--muted); }
+.rule b { color: var(--ink); font-weight: 600; }
+.rule code { font-family: var(--f-mono); font-size: 12px; color: var(--accent); }
+.recs { display: grid; gap: 10px; }
+.rec { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.rec.first { border-color: var(--accent); background: var(--accent-soft); }
+.rank { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-display); font-weight: 700; font-size: 18px; background: var(--surface); border: 1.5px solid var(--accent); color: var(--accent); }
+.rec.first .rank { background: var(--accent); color: var(--on-accent); }
+.rec-name { font-weight: 600; font-size: 15px; line-height: 1.25; min-width: 0; }
+.rec-min { text-align: right; font-family: var(--f-display); font-weight: 700; font-size: 34px; line-height: .9; font-variant-numeric: tabular-nums; }
+.rec-min small { font-family: var(--f-mono); font-size: 11px; font-weight: 500; color: var(--muted); display: block; letter-spacing: .04em; margin-top: 4px; }
+.rec-main { grid-column: 2 / 4; display: grid; gap: 8px; min-width: 0; }
+.bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); }
+.bar i { display: block; height: 100%; transition: width .3s ease; }
+.bar .d { background: var(--accent); }
+.bar .w { background: var(--delay); }
+.split { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.split span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.split .sd::before { background: var(--accent); }
+.split .sw::before { background: var(--delay); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.chip.ok { background: var(--good-soft); border-color: transparent; color: var(--good); }
+.chip.warn { background: var(--delay-soft); border-color: transparent; color: var(--delay); }
+.chip.crit { background: var(--critical-soft); border-color: transparent; color: var(--critical); }
+.chip code { font-family: var(--f-mono); font-size: 11px; }
+.rec-actions { display: flex; justify-content: flex-end; }
+.btn { border: 1px solid var(--accent); background: var(--surface); color: var(--accent); border-radius: 8px; padding: 6px 12px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn:hover { filter: brightness(1.05); }
+.btn:focus-visible, .ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ghost { border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 8px; padding: 6px 12px; font-weight: 500; font-size: 13px; cursor: pointer; }
+
+.why { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 6px; }
+.why ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.why li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; font-size: 13px; }
+.why li span:last-child { color: var(--muted); text-align: right; }
+.why li.lower span:last-child { font-variant-numeric: tabular-nums; }
+details.api summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--accent); }
+details.api pre { margin: 8px 0 0; padding: 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; font-family: var(--f-mono); font-size: 11.5px; line-height: 1.5; overflow-x: auto; max-height: 300px; }
+
+.log { display: grid; gap: 4px; font-size: 12.5px; }
+.log div { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; }
+.log time { font-family: var(--f-mono); color: var(--muted); font-size: 11.5px; padding-top: 1px; }
+.empty { color: var(--muted); font-size: 13px; }
+
+/* Status board */
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 860px; }
+th { text-align: left; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.name { font-weight: 600; white-space: nowrap; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--f-mono); }
+.caps { display: flex; flex-wrap: wrap; gap: 4px; max-width: 260px; }
+.cap { font-family: var(--f-mono); font-size: 10.5px; padding: 1px 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+.occ { display: flex; align-items: center; gap: 8px; }
+.occ input { width: 110px; accent-color: var(--accent); }
+.occ output { font-family: var(--f-mono); font-variant-numeric: tabular-nums; min-width: 4ch; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.stepper button { border: 0; background: var(--surface-2); width: 26px; height: 28px; cursor: pointer; font-size: 15px; }
+.stepper button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.stepper span { min-width: 28px; text-align: center; font-family: var(--f-mono); }
+input[type="number"].board { width: 56px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); font-family: var(--f-mono); }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .t { width: 34px; height: 20px; border-radius: 10px; background: var(--line); position: relative; transition: background .15s; flex: none; }
+.switch .t::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: transform .15s; }
+.switch input:checked + .t { background: var(--critical); }
+.switch input:checked + .t::after { transform: translateX(14px); }
+.switch input:focus-visible + .t { outline: 2px solid var(--accent); outline-offset: 2px; }
+.switch .l { font-size: 12.5px; color: var(--muted); }
+.switch input:checked ~ .l { color: var(--critical); font-weight: 600; }
+.delay-cell { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.delay-cell small { color: var(--muted); display: block; font-size: 10.5px; }
+.dim { opacity: .45; }
+.foot { color: var(--muted); font-size: 12.5px; max-width: 90ch; }
+.foot p { margin: 0 0 6px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 8px; font-size: 13.5px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; max-width: calc(100% - 32px); z-index: 20; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="var(--accent)"/><g fill="var(--on-accent)"><rect x="17" y="7" width="6" height="26" rx="1"/><rect x="17" y="7" width="6" height="26" rx="1" transform="rotate(60 20 20)"/><rect x="17" y="7" width="6" height="26" rx="1" transform="rotate(-60 20 20)"/></g></svg>
+      <div>
+        <h1>Boston Destination Scorer</h1>
+        <p class="sub">Pick an incident and a location. The scorer filters hospitals by what they can treat, then ranks the rest by minutes to definitive care: drive time plus predicted ED offload delay.</p>
+      </div>
+    </div>
+    <div class="sample">Sample data · fictional hospitals · not for clinical use</div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="inc-h">
+      <div class="panel-head"><h2 id="inc-h">Incident</h2><span class="label" id="loc-label">Kenmore Sq</span></div>
+      <div class="panel-body">
+        <fieldset>
+          <legend class="label">Incident category</legend>
+          <div class="pills" id="cats"></div>
+        </fieldset>
+        <div class="controls-row">
+          <div style="display:grid;gap:6px;min-width:0">
+            <label class="label" for="preset">Location</label>
+            <select id="preset"></select>
+          </div>
+          <fieldset>
+            <legend class="label">Traffic</legend>
+            <div class="seg" id="traffic">
+              <label><input type="radio" name="traffic" id="tr-light" value="light"><span>Light</span></label>
+              <label><input type="radio" name="traffic" id="tr-normal" value="normal" checked><span>Normal</span></label>
+              <label><input type="radio" name="traffic" id="tr-rush" value="rush"><span>Rush hour</span></label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <svg id="map" viewBox="80 0 760 720" role="img" aria-label="Map of the Boston area with sample hospitals. Click on land to move the incident." tabindex="0">
+          <rect x="80" y="0" width="760" height="720" fill="var(--land)"/>
+          <path d="M960 0 L840 0 L808 160 L792 280 L808 392 L736 376 L672 344 L624 324 L600 312 L604 344 L636 360 L688 384 L720 424 L704 480 L664 528 L640 552 L672 584 L728 600 L760 660 L744 720 L960 720 Z" fill="var(--water)" stroke="var(--water)" stroke-width="6" stroke-linejoin="round"/>
+          <polyline points="0,256 120,248 220,272 300,304 360,316 420,300 480,308 532,296 576,280 600,312" fill="none" stroke="var(--water)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <g stroke="var(--road-edge)" stroke-width="7">
+              <polyline points="80,344 240,348 360,344 448,350 528,364 572,368 616,360"/>
+              <polyline points="584,0 576,160 572,264 568,344 576,424 600,488 620,568 636,640 624,720"/>
+              <polyline points="576,256 624,200 664,120 688,0"/>
+            </g>
+            <g stroke="var(--road)" stroke-width="4">
+              <polyline points="80,344 240,348 360,344 448,350 528,364 572,368 616,360"/>
+              <polyline points="584,0 576,160 572,264 568,344 576,424 600,488 620,568 636,640 624,720"/>
+              <polyline points="576,256 624,200 664,120 688,0"/>
+            </g>
+          </g>
+          <g>
+            <rect class="shield" x="104" y="336" width="26" height="17" rx="4"/><text class="shield-t" x="117" y="349" text-anchor="middle">90</text>
+            <rect class="shield" x="567" y="36" width="26" height="17" rx="4"/><text class="shield-t" x="580" y="49" text-anchor="middle">93</text>
+            <rect class="shield" x="664" y="36" width="20" height="17" rx="4"/><text class="shield-t" x="674" y="49" text-anchor="middle">1</text>
+          </g>
+          <g>
+            <text class="nb" x="368" y="192" text-anchor="middle">Cambridge</text>
+            <text class="nb" x="452" y="144" text-anchor="middle">Somerville</text>
+            <text class="nb" x="504" y="70" text-anchor="middle">Medford</text>
+            <text class="nb" x="744" y="104" text-anchor="middle">Revere</text>
+            <text class="nb" x="648" y="172" text-anchor="middle">Chelsea</text>
+            <text class="nb" x="690" y="292" text-anchor="middle">East Boston</text>
+            <text class="nb" x="168" y="216" text-anchor="middle">Watertown</text>
+            <text class="nb" x="160" y="430" text-anchor="middle">Newton</text>
+            <text class="nb" x="360" y="484" text-anchor="middle">Brookline</text>
+            <text class="nb" x="464" y="540" text-anchor="middle">Jamaica Plain</text>
+            <text class="nb" x="512" y="476" text-anchor="middle">Roxbury</text>
+            <text class="nb" x="560" y="580" text-anchor="middle">Dorchester</text>
+            <text class="nb" x="696" y="690" text-anchor="middle">Quincy</text>
+            <text class="waterlabel" x="826" y="508" text-anchor="end">Boston Harbor</text>
+            <text class="waterlabel" x="240" y="262" text-anchor="middle">Charles River</text>
+          </g>
+          <g>
+            <line x1="104" y1="694" x2="184" y2="694" stroke="var(--muted)" stroke-width="2"/>
+            <line x1="104" y1="688" x2="104" y2="700" stroke="var(--muted)" stroke-width="2"/>
+            <line x1="184" y1="688" x2="184" y2="700" stroke="var(--muted)" stroke-width="2"/>
+            <text class="scale-t" x="196" y="698">2 km</text>
+            <path d="M112 22 L120 44 L112 39 L104 44 Z" fill="var(--muted)"/>
+            <text class="scale-t" x="112" y="60" text-anchor="middle">N</text>
+          </g>
+          <g id="dyn"></g>
+        </svg>
+        <div class="map-note">Click anywhere on land to move the incident. Lines are straight; drive times use a road-distance estimate.</div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="rec-h">
+      <div class="panel-head"><h2 id="rec-h">Recommended destinations</h2><span class="label">Rules v1.3 · sample</span></div>
+      <div class="panel-body">
+        <div class="rule" id="rule"></div>
+        <div class="recs" id="recs" aria-live="polite"></div>
+        <div class="why" id="why"></div>
+        <details class="api"><summary>Show the API response</summary><pre id="api"></pre></details>
+        <div class="why">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <span class="label">Dispatch log</span>
+            <button class="ghost" id="reset" type="button">Reset demo</button>
+          </div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="board-h">
+    <div class="panel-head"><h2 id="board-h">Hospital status board</h2><span class="label">Change any value to see the ranking update</span></div>
+    <div class="panel-body">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Hospital</th><th>Capabilities</th><th>Data feed</th><th>ED occupancy</th><th>Boarding</th><th>Units en route</th><th>ED diversion</th><th>Predicted offload delay</th></tr></thead>
+          <tbody id="board"></tbody>
+        </table>
+      </div>
+      <div class="foot">
+        <p>Offload delay with a live feed: baseline + 0.35 min per point of ED occupancy above 85% + 0.4 min per boarded patient + 2 min per unit already en route. With no live feed, or one older than 5 minutes, the scorer uses that hospital's historical median offload time plus the en-route term, and flags it.</p>
+        <p>Diversion rule D-1: a hospital on ED diversion is skipped, except for time-critical specialty patients (major trauma, stroke with LVO signs, STEMI, major burn), who still go to the capable center. Hospitals, capabilities, rules and figures here are invented for the demo.</p>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  const ROMAN = ['', 'I', 'II', 'III'];
+  const HOSPITALS = [
+    { id: 'hvw', name: 'Harborview Medical Center', short: 'Harborview', x: 13.9, y: 7.9, side: 'r', trauma: 1, stroke: 'CSC', pci: true, burn: true, ob: false, peds: false, pedsOnly: false, feed: 'live', occ: 104, board: 9, enroute: 2, div: false, base: 6, hist: 14, age: 2 },
+    { id: 'lwg', name: 'Longwood General Hospital', short: 'Longwood General', x: 11.4, y: 10.0, side: 'l', trauma: 1, stroke: 'CSC', pci: true, burn: false, ob: true, peds: false, pedsOnly: false, feed: 'live', occ: 118, board: 14, enroute: 3, div: false, base: 7, hist: 16, age: 1 },
+    { id: 'lwc', name: "Longwood Children's Hospital", short: "Longwood Children's", x: 10.5, y: 10.9, side: 'l', trauma: 0, stroke: null, pci: false, burn: false, ob: false, peds: true, pedsOnly: true, feed: 'none', occ: 90, board: 2, enroute: 0, div: false, base: 4, hist: 9, age: null },
+    { id: 'seu', name: 'South End University Hospital', short: 'South End University', x: 13.7, y: 10.4, side: 'r', trauma: 1, stroke: 'PSC', pci: true, burn: false, ob: true, peds: true, pedsOnly: false, feed: 'stale', occ: 96, board: 6, enroute: 1, div: false, base: 5, hist: 12, age: 18 },
+    { id: 'cvh', name: 'Charles Valley Hospital', short: 'Charles Valley', x: 10.4, y: 6.1, side: 'l', trauma: 2, stroke: 'TSC', pci: true, burn: false, ob: true, peds: false, pedsOnly: false, feed: 'live', occ: 88, board: 3, enroute: 0, div: false, base: 4, hist: 9, age: 3 },
+    { id: 'mys', name: 'Mystic Regional Hospital', short: 'Mystic Regional', x: 13.6, y: 2.7, side: 'r', trauma: 0, stroke: 'PSC', pci: false, burn: false, ob: true, peds: false, pedsOnly: false, feed: 'none', occ: 85, board: 2, enroute: 0, div: false, base: 4, hist: 8, age: null },
+    { id: 'nep', name: 'Neponset Community Hospital', short: 'Neponset Community', x: 15.6, y: 15.4, side: 'l', trauma: 3, stroke: 'PSC', pci: true, burn: false, ob: true, peds: false, pedsOnly: false, feed: 'none', occ: 85, board: 2, enroute: 0, div: false, base: 4, hist: 10, age: null },
+    { id: 'wnh', name: 'West Newton Hospital', short: 'West Newton', x: 5.2, y: 9.2, side: 'r', trauma: 0, stroke: 'PSC', pci: true, burn: false, ob: true, peds: false, pedsOnly: false, feed: 'live', occ: 72, board: 1, enroute: 0, div: false, base: 4, hist: 7, age: 4 },
+    { id: 'bay', name: 'Bayside Medical Center', short: 'Bayside', x: 17.5, y: 5.0, side: 'r', trauma: 0, stroke: 'ASR', pci: false, burn: false, ob: false, peds: false, pedsOnly: false, feed: 'none', occ: 85, board: 2, enroute: 0, div: true, base: 4, hist: 11, age: null }
+  ];
+  const STROKE_NAME = { CSC: 'Comprehensive stroke', TSC: 'Thrombectomy-capable stroke', PSC: 'Primary stroke', ASR: 'Acute stroke ready' };
+
+  const CATS = [
+    { id: 'trauma', label: 'Major trauma', rule: 'T-1', need: 'Level I or II trauma center', exempt: true,
+      ok: h => !h.pedsOnly && (h.trauma === 1 || h.trauma === 2),
+      qual: h => `Level ${ROMAN[h.trauma]} trauma`,
+      why: h => h.pedsOnly ? 'Pediatric-only facility' : h.trauma === 3 ? 'Level III trauma only' : 'No trauma designation' },
+    { id: 'lvo', label: 'Stroke, LVO signs', rule: 'S-1', need: 'thrombectomy-capable stroke center', exempt: true,
+      ok: h => !h.pedsOnly && (h.stroke === 'CSC' || h.stroke === 'TSC'),
+      qual: h => `${STROKE_NAME[h.stroke]} center`,
+      why: h => h.pedsOnly ? 'Pediatric-only facility' : h.stroke ? `${STROKE_NAME[h.stroke]}, no thrombectomy` : 'No stroke certification' },
+    { id: 'stroke', label: 'Stroke, no LVO signs', rule: 'S-2', need: 'any certified stroke center', exempt: false,
+      ok: h => !h.pedsOnly && !!h.stroke,
+      qual: h => `${STROKE_NAME[h.stroke]} center`,
+      why: h => h.pedsOnly ? 'Pediatric-only facility' : 'No stroke certification' },
+    { id: 'stemi', label: 'STEMI', rule: 'C-1', need: 'hospital with a 24/7 cath lab', exempt: true,
+      ok: h => !h.pedsOnly && h.pci, qual: () => '24/7 cath lab',
+      why: h => h.pedsOnly ? 'Pediatric-only facility' : 'No 24/7 cath lab' },
+    { id: 'burn', label: 'Major burn', rule: 'B-1', need: 'verified burn center', exempt: true,
+      ok: h => !h.pedsOnly && h.burn, qual: () => 'Verified burn center',
+      why: h => h.pedsOnly ? 'Pediatric-only facility' : 'Not a burn center' },
+    { id: 'peds', label: 'Pediatric emergency', rule: 'P-1', need: 'pediatric emergency department', exempt: false,
+      ok: h => h.peds, qual: h => h.pedsOnly ? "Children's hospital" : 'Pediatric ED',
+      why: () => 'No pediatric ED' },
+    { id: 'ob', label: 'Labor / obstetric', rule: 'O-1', need: 'labor and delivery unit', exempt: false,
+      ok: h => !h.pedsOnly && h.ob, qual: () => 'Labor and delivery',
+      why: h => h.pedsOnly ? 'Pediatric-only facility' : 'No labor and delivery unit' },
+    { id: 'general', label: 'General medical', rule: 'G-1', need: 'any adult emergency department', exempt: false,
+      ok: h => !h.pedsOnly, qual: () => 'Adult ED', why: () => 'Pediatric-only facility' }
+  ];
+
+  const PRESETS = [
+    { id: 'kenmore', label: 'Kenmore Sq, Boston', short: 'Kenmore Sq', x: 11.9, y: 8.9 },
+    { id: 'fields', label: 'Fields Corner, Dorchester', short: 'Fields Corner', x: 15.2, y: 13.0 },
+    { id: 'davis', label: 'Davis Sq, Somerville', short: 'Davis Sq', x: 10.5, y: 3.9 },
+    { id: 'chelsea', label: 'Chelsea Sq, Chelsea', short: 'Chelsea Sq', x: 16.0, y: 5.6 },
+    { id: 'quincy', label: 'Quincy Center, Quincy', short: 'Quincy Center', x: 16.4, y: 16.8 },
+    { id: 'newton', label: 'Newton Centre, Newton', short: 'Newton Centre', x: 6.3, y: 10.6 }
+  ];
+
+  const SPEED = { light: 45, normal: 32, rush: 20 };
+  const RIVER = [[0, 6.4], [3, 6.2], [5.5, 6.8], [7.5, 7.6], [9, 7.9], [10.5, 7.5], [12, 7.7], [13.3, 7.4], [14.4, 7.0], [15.0, 7.8]];
+  const WATER = [[24, 0], [21, 0], [20.2, 4], [19.8, 7], [20.2, 9.8], [18.4, 9.4], [16.8, 8.6], [15.6, 8.1], [15.0, 7.8], [15.1, 8.6], [15.9, 9.0], [17.2, 9.6], [18.0, 10.6], [17.6, 12], [16.6, 13.2], [16.0, 13.8], [16.8, 14.6], [18.2, 15], [19, 16.5], [18.6, 18], [24, 18]];
+  const K = 40; // px per km in the map's viewBox
+
+  const clone = o => JSON.parse(JSON.stringify(o));
+  let S;
+  function fresh() {
+    return { cat: 'trauma', loc: { ...PRESETS[0] }, traffic: 'normal', hosp: clone(HOSPITALS), log: [], unit: 1 };
+  }
+  S = fresh();
+
+  // ---------- model ----------
+  function riverY(x) {
+    if (x <= RIVER[0][0]) return RIVER[0][1];
+    for (let i = 1; i < RIVER.length; i++) {
+      const a = RIVER[i - 1], b = RIVER[i];
+      if (x <= b[0]) return a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]);
+    }
+    return RIVER[RIVER.length - 1][1];
+  }
+  const northSide = p => p.x >= 15.2 ? p.y < 8.4 : p.y < riverY(p.x);
+  function inWater(p) {
+    let inside = false;
+    for (let i = 0, j = WATER.length - 1; i < WATER.length; j = i++) {
+      const [xi, yi] = WATER[i], [xj, yj] = WATER[j];
+      if ((yi > p.y) !== (yj > p.y) && p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  function drive(a, h) {
+    const km = Math.hypot(a.x - h.x, a.y - h.y) * 1.35;
+    let min = km / SPEED[S.traffic] * 60 + 1.5;
+    if (northSide(a) !== northSide(h)) min += S.traffic === 'rush' ? 5 : 3;
+    return Math.max(2, Math.round(min));
+  }
+  function delay(h) {
+    const live = h.feed === 'live';
+    const raw = live
+      ? h.base + Math.max(0, h.occ - 85) * 0.35 + h.board * 0.4 + h.enroute * 2
+      : h.hist + h.enroute * 2;
+    return { min: Math.round(raw), source: live ? 'live' : h.feed, age: live ? h.age : (h.feed === 'stale' ? h.age : null) };
+  }
+  function score() {
+    const cat = CATS.find(c => c.id === S.cat);
+    const eligible = [], excluded = [];
+    for (const h of S.hosp) {
+      if (!cat.ok(h)) { excluded.push({ h, reason: cat.why(h), code: cat.rule }); continue; }
+      if (h.div && !cat.exempt) { excluded.push({ h, reason: 'On ED diversion', code: 'D-1' }); continue; }
+      const d = drive(S.loc, h), w = delay(h);
+      eligible.push({ h, drive: d, delay: w, total: d + w.min, divExempt: h.div && cat.exempt });
+    }
+    eligible.sort((a, b) => a.total - b.total || a.drive - b.drive);
+    return { cat, eligible, excluded };
+  }
+
+  // ---------- rendering ----------
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function buildControls() {
+    $('cats').innerHTML = CATS.map(c => `<label class="pill"><input type="radio" name="cat" id="cat-${c.id}" value="${c.id}"${c.id === S.cat ? ' checked' : ''}><span>${esc(c.label)} <span class="tc">${c.rule}</span></span></label>`).join('');
+    $('preset').innerHTML = PRESETS.map(p => `<option value="${p.id}">${esc(p.label)}</option>`).join('') + '<option value="custom" disabled>Point picked on map</option>';
+    $('cats').addEventListener('change', e => { S.cat = e.target.value; render(); });
+    $('preset').addEventListener('change', e => { const p = PRESETS.find(x => x.id === e.target.value); if (p) { S.loc = { ...p }; render(); } });
+    $('traffic').addEventListener('change', e => { S.traffic = e.target.value; render(); });
+  }
+
+  function capList(h) {
+    const c = [];
+    if (h.trauma) c.push(`Trauma ${ROMAN[h.trauma]}`);
+    if (h.stroke) c.push(`Stroke ${h.stroke}`);
+    if (h.pci) c.push('PCI 24/7');
+    if (h.burn) c.push('Burn');
+    if (h.ob) c.push('L&D');
+    if (h.peds) c.push(h.pedsOnly ? 'Pediatric only' : 'Peds ED');
+    if (!c.length) c.push('ED');
+    return c;
+  }
+
+  function buildBoard() {
+    $('board').innerHTML = S.hosp.map(h => `
+      <tr data-id="${h.id}">
+        <td class="name">${esc(h.name)}</td>
+        <td><div class="caps">${capList(h).map(c => `<span class="cap">${esc(c)}</span>`).join('')}</div></td>
+        <td><select id="feed-${h.id}" data-k="feed" aria-label="Data feed for ${esc(h.short)}">
+          <option value="live"${h.feed === 'live' ? ' selected' : ''}>Live feed</option>
+          <option value="stale"${h.feed === 'stale' ? ' selected' : ''}>Feed stale</option>
+          <option value="none"${h.feed === 'none' ? ' selected' : ''}>No live feed</option></select></td>
+        <td><div class="occ" data-live><input type="range" id="occ-${h.id}" data-k="occ" min="50" max="140" step="1" value="${h.occ}" aria-label="ED occupancy for ${esc(h.short)}"><output id="occo-${h.id}">${h.occ}%</output></div></td>
+        <td data-live><input class="board" type="number" id="board-${h.id}" data-k="board" min="0" max="40" value="${h.board}" aria-label="Boarded patients at ${esc(h.short)}"></td>
+        <td><div class="stepper"><button type="button" data-step="-1" aria-label="One fewer unit en route to ${esc(h.short)}">−</button><span id="er-${h.id}">${h.enroute}</span><button type="button" data-step="1" aria-label="One more unit en route to ${esc(h.short)}">+</button></div></td>
+        <td><label class="switch"><input type="checkbox" id="div-${h.id}" data-k="div"${h.div ? ' checked' : ''}><span class="t"></span><span class="l">${h.div ? 'On diversion' : 'Open'}</span></label></td>
+        <td class="delay-cell" id="dl-${h.id}"></td>
+      </tr>`).join('');
+
+    $('board').addEventListener('input', e => {
+      const tr = e.target.closest('tr'); if (!tr) return;
+      const h = S.hosp.find(x => x.id === tr.dataset.id), k = e.target.dataset.k;
+      if (k === 'occ') { h.occ = +e.target.value; $('occo-' + h.id).textContent = h.occ + '%'; }
+      else if (k === 'board') { h.board = Math.max(0, Math.min(40, +e.target.value || 0)); }
+      else return;
+      render();
+    });
+    $('board').addEventListener('change', e => {
+      const tr = e.target.closest('tr'); if (!tr) return;
+      const h = S.hosp.find(x => x.id === tr.dataset.id), k = e.target.dataset.k;
+      if (k === 'feed') { h.feed = e.target.value; if (h.feed === 'stale') h.age = 18; else if (h.feed === 'live') h.age = 2; }
+      else if (k === 'div') { h.div = e.target.checked; e.target.parentElement.querySelector('.l').textContent = h.div ? 'On diversion' : 'Open'; }
+      else return;
+      render();
+    });
+    $('board').addEventListener('click', e => {
+      const b = e.target.closest('button[data-step]'); if (!b) return;
+      const h = S.hosp.find(x => x.id === b.closest('tr').dataset.id);
+      h.enroute = Math.max(0, Math.min(12, h.enroute + +b.dataset.step));
+      $('er-' + h.id).textContent = h.enroute;
+      render();
+    });
+  }
+
+  function syncBoard() {
+    for (const h of S.hosp) {
+      const tr = document.querySelector(`tr[data-id="${h.id}"]`);
+      tr.querySelectorAll('[data-live]').forEach(el => el.classList.toggle('dim', h.feed !== 'live'));
+      tr.querySelectorAll('[data-live] input').forEach(el => el.disabled = h.feed !== 'live');
+      $('er-' + h.id).textContent = h.enroute;
+      const d = delay(h);
+      const note = d.source === 'live' ? `live · ${h.age} min old` : d.source === 'stale' ? `historical · feed ${h.age} min old` : 'historical median';
+      $('dl-' + h.id).innerHTML = `${d.min} min<small>${note}</small>`;
+    }
+  }
+
+  function dataChip(d) {
+    if (d.source === 'live') return `<span class="chip ok">Live ED feed · ${d.age} min old</span>`;
+    if (d.source === 'stale') return `<span class="chip warn">Feed stale (${d.age} min) · using historical delay</span>`;
+    return `<span class="chip warn">No live feed · historical delay</span>`;
+  }
+
+  function renderResults(r) {
+    const { cat, eligible, excluded } = r;
+    $('rule').innerHTML = `Rule <code>${cat.rule}</code>: <b>${esc(cat.label)}</b> goes to a ${esc(cat.need)}. ${eligible.length} of ${S.hosp.length} hospitals qualify.`;
+    const top = eligible.slice(0, 3);
+    const scale = Math.max(45, ...top.map(t => t.total));
+    if (!top.length) {
+      $('recs').innerHTML = `<div class="rec first"><div class="rank">!</div><div class="rec-name">No hospital in the region meets rule ${cat.rule}.</div><div></div><div class="rec-main"><span class="rule">Protocol fallback: transport to the nearest open ED and contact medical control.</span></div></div>`;
+    } else {
+      $('recs').innerHTML = top.map((t, i) => {
+        const chips = [
+          `<span class="chip ok">${esc(cat.qual(t.h))} · <code>${cat.rule}</code></span>`,
+          dataChip(t.delay),
+          t.h.enroute ? `<span class="chip">${t.h.enroute} unit${t.h.enroute > 1 ? 's' : ''} en route</span>` : '',
+          t.divExempt ? `<span class="chip crit">On diversion · exempt for ${esc(cat.label.toLowerCase())} · <code>D-1</code></span>` : ''
+        ].join('');
+        return `<article class="rec${i === 0 ? ' first' : ''}">
+          <div class="rank" aria-label="Rank ${i + 1}">${i + 1}</div>
+          <div class="rec-name">${esc(t.h.name)}</div>
+          <div class="rec-min">${t.total}<small>MIN TO CARE</small></div>
+          <div class="rec-main">
+            <div class="bar" aria-hidden="true"><i class="d" style="width:${t.drive / scale * 100}%"></i><i class="w" style="width:${t.delay.min / scale * 100}%"></i></div>
+            <div class="split"><span class="sd">Drive ${t.drive} min</span><span class="sw">ED offload ${t.delay.min} min</span></div>
+            <div class="chips">${chips}</div>
+            <div class="rec-actions"><button type="button" class="btn${i === 0 ? ' primary' : ''}" data-send="${t.h.id}" data-rank="${i + 1}">Send Medic ${S.unit} here</button></div>
+          </div>
+        </article>`;
+      }).join('');
+    }
+    const lower = eligible.slice(3);
+    $('why').innerHTML = `<span class="label">Not recommended</span><ul>${
+      lower.map((t, i) => `<li class="lower"><span>${i + 4}. ${esc(t.h.short)}</span><span>Ranked lower · ${t.total} min</span></li>`).join('') +
+      excluded.map(x => `<li><span>${esc(x.h.short)}</span><span>${esc(x.reason)} · ${x.code}</span></li>`).join('')
+    }</ul>`;
+    $('api').textContent = JSON.stringify({
+      request: { category: cat.id, location: { label: S.loc.short, x_km: +S.loc.x.toFixed(2), y_km: +S.loc.y.toFixed(2) }, traffic: S.traffic },
+      rules_version: '1.3-sample',
+      recommendations: top.map((t, i) => ({
+        rank: i + 1, hospital_id: t.h.id, name: t.h.name, minutes_total: t.total,
+        minutes_drive: t.drive, minutes_offload: t.delay.min,
+        qualified_by: { rule: cat.rule, capability: cat.qual(t.h) },
+        offload_source: t.delay.source === 'live' ? 'live_feed' : 'historical_median',
+        data_age_min: t.delay.age, units_en_route: t.h.enroute, diversion_exempt: t.divExempt
+      })),
+      excluded: excluded.map(x => ({ hospital_id: x.h.id, rule: x.code, reason: x.reason }))
+    }, null, 2);
+  }
+
+  function renderMap(r) {
+    const rankOf = new Map(r.eligible.slice(0, 3).map((t, i) => [t.h.id, i + 1]));
+    const eligibleIds = new Set(r.eligible.map(t => t.h.id));
+    const L = S.loc, lx = L.x * K, ly = L.y * K;
+    let out = '';
+    // routes to top 3, #1 drawn last so it sits on top
+    [...r.eligible.slice(0, 3)].reverse().forEach((t, idx, arr) => {
+      const rank = arr.length - idx;
+      out += rank === 1
+        ? `<line x1="${lx}" y1="${ly}" x2="${t.h.x * K}" y2="${t.h.y * K}" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>`
+        : `<line x1="${lx}" y1="${ly}" x2="${t.h.x * K}" y2="${t.h.y * K}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 6" opacity=".6"/>`;
+    });
+    for (const h of S.hosp) {
+      const x = h.x * K, y = h.y * K, rank = rankOf.get(h.id), el = eligibleIds.has(h.id);
+      if (h.div) out += `<circle cx="${x}" cy="${y}" r="19" fill="none" stroke="var(--critical)" stroke-width="2" stroke-dasharray="4 3"/>`;
+      if (rank) out += `<circle cx="${x}" cy="${y}" r="13" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/><text class="rank-t" x="${x}" y="${y + 6}" text-anchor="middle">${rank}</text>`;
+      else if (el) out += `<circle cx="${x}" cy="${y}" r="8" fill="var(--surface)" stroke="var(--accent)" stroke-width="2.5"/>`;
+      else out += `<circle cx="${x}" cy="${y}" r="7" fill="var(--excluded)" stroke="var(--muted)" stroke-width="1"/>`;
+      const off = rank ? 20 : 14;
+      out += `<text class="h-label${rank ? ' top' : ''}${el ? '' : ' out'}" x="${h.side === 'r' ? x + off : x - off}" y="${y + 6}" text-anchor="${h.side === 'r' ? 'start' : 'end'}">${esc(h.short)}</text>`;
+    }
+    out += `<circle class="pulse" cx="${lx}" cy="${ly}" r="11" fill="var(--critical)" opacity=".5"/><circle cx="${lx}" cy="${ly}" r="10" fill="var(--critical)" stroke="var(--surface)" stroke-width="2.5"/><circle cx="${lx}" cy="${ly}" r="3.5" fill="var(--surface)"/>`;
+    $('dyn').innerHTML = out;
+  }
+
+  function renderLog() {
+    $('log').innerHTML = S.log.length
+      ? S.log.map(e => `<div><time>${e.time}</time><span>${esc(e.unit)} → ${esc(e.name)}, ${e.total} min. ${e.rank === 1 ? 'Followed recommendation #1.' : `Crew chose #${e.rank}; logged for review.`}</span></div>`).join('')
+      : '<span class="empty">No units sent yet. Send one and watch that hospital\'s predicted delay rise.</span>';
+  }
+
+  function render() {
+    const r = score();
+    $('loc-label').textContent = S.loc.short;
+    const sel = $('preset');
+    sel.value = PRESETS.some(p => p.id === S.loc.id) ? S.loc.id : 'custom';
+    renderResults(r);
+    renderMap(r);
+    syncBoard();
+    renderLog();
+    return r;
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3800);
+  }
+
+  // dispatch
+  $('recs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-send]'); if (!b) return;
+    const r = score();
+    const t = r.eligible.find(x => x.h.id === b.dataset.send); if (!t) return;
+    const unit = `Medic ${S.unit++}`;
+    t.h.enroute = Math.min(12, t.h.enroute + 1);
+    const now = new Date();
+    S.log.unshift({ time: now.toTimeString().slice(0, 5), unit, name: t.h.short, total: t.total, rank: +b.dataset.rank });
+    const r2 = render();
+    const after = r2.eligible.find(x => x.h.id === t.h.id);
+    toast(`${unit} sent to ${t.h.short}. Its predicted offload delay is now ${after ? after.delay.min : delay(t.h).min} min.`);
+  });
+
+  // map clicks
+  function pickFromEvent(evt) {
+    const svg = $('map'), pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return { x: p.x / K, y: p.y / K };
+  }
+  $('map').addEventListener('click', e => {
+    const p = pickFromEvent(e);
+    if (p.x < 2 || p.x > 21 || p.y < 0 || p.y > 18) return;
+    if (inWater(p)) { toast('That spot is in the harbor. Pick a point on land.'); return; }
+    S.loc = { id: 'custom', label: 'Point picked on map', short: 'Map point', x: p.x, y: p.y };
+    render();
+  });
+
+  $('reset').addEventListener('click', () => {
+    S = fresh();
+    $('board').replaceWith($('board').cloneNode(false));
+    buildBoard();
+    document.getElementById('cat-' + S.cat).checked = true;
+    document.getElementById('tr-normal').checked = true;
+    render();
+    toast('Demo reset to the starting state.');
+  });
+
+  buildControls();
+  buildBoard();
+  render();
+})();
+</script>
+
+</body></html>
