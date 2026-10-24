@@ -141,7 +141,7 @@ export default function App() {
     <div className="wrap">
       <header className="top">
         <div>
-          <h1>Boston Destination Scorer</h1>
+          <h1>Metropolis</h1>
           <p className="sub">Filters hospitals by what they can treat, then ranks them by minutes to definitive care: drive time plus predicted ED offload delay.</p>
         </div>
         <div className="sample">Sample data · fictional hospitals · not for clinical use</div>
@@ -198,7 +198,9 @@ export default function App() {
           </div>
           <div className="map">
             <MapContainer center={[42.355, -71.09]} zoom={12} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
+              {/* Standard OSM tiles, muted with CSS (.basemap) so markers and routes stand out. */}
               <TileLayer
+                className="basemap"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />

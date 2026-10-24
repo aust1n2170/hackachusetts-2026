@@ -1,6 +1,6 @@
-# EMS Destination Scorer
+# Metropolis
 
-Recommends the best hospital for an EMS transport. It filters hospitals by what they can treat for the incident category, then ranks the rest by **minutes to definitive care = drive time + predicted ED offload delay**.
+EMS destination routing. Metropolis recommends the best hospital for an EMS transport. It filters hospitals by what they can treat for the incident category, then ranks the rest by **minutes to definitive care = drive time + predicted ED offload delay**.
 
 > **Sample data only.** The nine Boston-area hospitals in `api/data/sample_hospitals.json` are fictional, and `api/rules/region-rules.yaml` is not a real protocol. Not for clinical use.
 

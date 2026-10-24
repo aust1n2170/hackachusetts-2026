@@ -2,12 +2,12 @@
 
 ## Architecture
 
-Four containerized services orchestrated by `ems-destination-scorer/docker-compose.yml`:
+Four containerized services orchestrated by `metropolis/docker-compose.yml`:
 
 - **db** — PostgreSQL 16 + PostGIS 3.4 (`postgis/postgis:16-3.4`). Hospital registry, live status, dispatches, and the score audit trail. PostGIS powers radius geo-queries.
-- **api** — Python 3.12 / FastAPI (`ems-destination-scorer/api/`). On start: `python -m app.seed` (create tables + load sample hospitals), then `uvicorn app.main:app` on **:8000**.
+- **api** — Python 3.12 / FastAPI (`metropolis/api/`). On start: `python -m app.seed` (create tables + load sample hospitals), then `uvicorn app.main:app` on **:8000**.
 - **jobs** — same image as `api`, runs `python -m jobs.scheduler`. An APScheduler `BlockingScheduler` firing every `FEED_INTERVAL_SECONDS` (default 60s) that simulates live ED feeds and closes stale dispatches.
-- **web** — React 18 + TypeScript + Vite + Leaflet SPA (`ems-destination-scorer/web/`) on **:5173**. Browser calls `/api/*`; Vite's dev proxy rewrites and forwards to the FastAPI service.
+- **web** — React 18 + TypeScript + Vite + Leaflet SPA (`metropolis/web/`) on **:5173**. Browser calls `/api/*`; Vite's dev proxy rewrites and forwards to the FastAPI service.
 - **osrm** (optional, compose profile `routing`) — `osrm/osrm-backend:v5.27.1` serving Massachusetts road routing on :5000. Active only when `OSRM_URL` is set.
 
 Data flow: browser → Vite `/api` proxy → FastAPI → `repository.py` (reads hospitals + en-route counts) → `routing.py` (drive times via OSRM or fallback) → `scoring.py` (pure ranking) → response + `score_audit` row. The `jobs` scheduler independently writes `hospital_status` rows that the next `/score` or `/hospitals` call reads.
@@ -30,7 +30,7 @@ Data flow: browser → Vite `/api` proxy → FastAPI → `repository.py` (reads 
 
 ## Common commands
 
-Run from `ems-destination-scorer/`.
+Run from `metropolis/`.
 
 ```bash
 # Full stack (Docker)

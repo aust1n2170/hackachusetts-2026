@@ -109,3 +109,8 @@ input.num:disabled { opacity: .45; }
 .why li .gain { color: var(--good); font-weight: 600; }
 .why li .loss { color: var(--delay); font-weight: 600; }
 .rec.swap .rank { font-size: 15px; }
+/* Declutter the OSM basemap: gray, low contrast, slightly faded, so markers and routes stand out. */
+.basemap { filter: grayscale(1) contrast(0.8) brightness(1.08); opacity: 0.75; }
+@media (prefers-color-scheme: dark) {
+  .basemap { filter: grayscale(1) invert(1) contrast(0.75) brightness(0.9); opacity: 0.8; }
+}

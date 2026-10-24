@@ -1,9 +1,9 @@
 # Project Structure
 
-The project lives in `ems-destination-scorer/` under the workspace root. (`Boston Destination Scorer.html` at the root is a standalone artifact, not part of the running app.)
+The project is **Metropolis** and lives in `metropolis/` under the workspace root. (`Boston Destination Scorer.html` at the root is a standalone artifact, not part of the running app.)
 
 ```
-ems-destination-scorer/
+metropolis/
   api/                          FastAPI backend + feed jobs (Python 3.12)
     app/
       main.py                   FastAPI endpoints; wires repository + routing + scoring; writes audit

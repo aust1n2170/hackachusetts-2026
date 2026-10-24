@@ -41,10 +41,10 @@
   - _Requirements: 5.1–5.5_
 
 - [x] 8. Verify and document
-  - [x] 8.1 `cd ems-destination-scorer/api && python -m pytest -q` passes (old and new tests: 30).
+  - [x] 8.1 `cd metropolis/api && python -m pytest -q` passes (old and new tests: 30).
   - [x] 8.2 End-to-end against the running stack via the API: suggestion, dedup, position update, accept, decline, cooldown, 404/409/422 paths, simulated movement. (Ran on the existing dev DB instead of `make reset`; the console was not checked in a browser.)
   - [x] 8.3 `npx tsc --noEmit` passes (run inside the web container).
-  - [x] 8.4 Add the ranker endpoints and `ranker:` rules to `ems-destination-scorer/README.md`.
+  - [x] 8.4 Add the ranker endpoints and `ranker:` rules to `metropolis/README.md`.
 
 ## Changes from the design
 

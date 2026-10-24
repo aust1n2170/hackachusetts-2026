@@ -8,7 +8,9 @@ services:
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ems -d ems"]
+      # -h 127.0.0.1: during first-run init the temporary server listens on the unix socket only,
+      # so a socket check passes too early and the api can't connect yet.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ems -d ems"]
       interval: 3s
       timeout: 3s
       retries: 20

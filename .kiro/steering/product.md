@@ -2,14 +2,14 @@
 
 ## What this is
 
-The **EMS Destination Scorer** recommends the best hospital for an EMS (ambulance) transport. Given an incident location and a clinical category, it:
+**Metropolis** recommends the best hospital for an EMS (ambulance) transport. Given an incident location and a clinical category, it:
 
 1. **Filters** hospitals by what they can actually treat for that category (capability filter).
 2. **Ranks** the survivors by **minutes to definitive care = drive time + predicted ED offload delay**.
 
 It is decision support for EMS dispatchers and regional hospital systems — the goal is to get the right patient to the right hospital in the least time, accounting for both how far away a hospital is and how backed up its emergency department is.
 
-The frontend presents this as the "Boston Destination Scorer" dispatcher console: pick an incident type and location, see ranked recommendations on a map, and dispatch a unit.
+The frontend is the Metropolis dispatcher console: pick an incident type and location, see ranked recommendations on a map, and dispatch a unit.
 
 ## End-to-end workflow (target)
 
