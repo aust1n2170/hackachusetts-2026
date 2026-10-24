@@ -30,3 +30,5 @@ cd hackachusetts-2026/metropolis
 cp .env.example .env
 docker compose up --build    # console at http://localhost:5173
 ```
+
+To walk through the demo (one call, a destination swap, and the surge replay), see [Run the demo](metropolis/README.md#run-the-demo).

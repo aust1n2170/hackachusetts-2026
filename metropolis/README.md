@@ -27,6 +27,25 @@ python -m jobs.scheduler                                # feed jobs, in a second
 cd ../web && npm install && npm run dev                 # web on :5173
 ```
 
+## Run the demo
+
+About five minutes. Start the stack (Quick start above), open http://localhost:5173, and keep the `DEMO_MODE=true` line from `.env.example` in your `.env`.
+
+1. **Load the demo state.** Click **Load demo scenario** in the bar under the header and confirm. This clears dispatches, sets every hospital to the scripted surge state, and freezes the simulated feed so the numbers below stay the same.
+2. **One call, today vs. Metropolis.** Choose **Major trauma**, location **Kenmore Sq, Boston**, traffic **Normal**. The strip above the recommendations compares today's choice with Metropolis:
+   - **Today (nearest capable):** Longwood General, 30 min to care. It's close but crowded.
+   - **Metropolis:** Charles Valley, 16 min.
+
+   Under **Not recommended**, each excluded hospital shows the rule it failed (for example, "No Level I or II trauma designation").
+3. **A destination swap.** Keep Kenmore Sq.
+   - Choose **STEMI** (acuity defaults to 1 · Critical) and click **Send Medic 1 here** on **Harborview Medical Center**, even though it's ranked third.
+   - Choose **General medical**, set acuity to **3 · Urgent**, and send Medic 2 to **Charles Valley Hospital**.
+   - **Suggested swaps** shows Medic 1 ⇄ Medic 2: the critical patient goes from 28 to 18 min, the urgent one from 18 to 28. Click **Accept swap**, and the dispatch log marks both units as swapped.
+4. **Surge replay.** Scroll to **Before vs. after: surge replay**, or open http://localhost:5173/?replay=surge to run it on load. Select **Nearest capable (today)** and press **Play** to watch Longwood General fill up. Then select **Metropolis** and play again. The cards show the totals: 24.4 vs. 29.5 min average to care, critical patients 2.1 min faster, and no one sent to a hospital that can't treat them.
+5. **Reset.** Click **Reload scenario** to start over, or **Unfreeze feeds** to return to the changing simulated feed.
+
+All figures come from fictional hospitals and modeled ED waits, with straight-line drive times unless OSRM is set up. Details: [Before vs. after](#before-vs-after).
+
 ## Try it
 
 ```bash
@@ -163,7 +182,7 @@ make up-routing
 make test        # or: cd api && python -m pytest -q
 ```
 
-The scoring and ranker tests need no database or routing server.
+The scoring, ranker, baseline and simulation tests need no database or routing server.
 
 ## Before a real pilot
 
