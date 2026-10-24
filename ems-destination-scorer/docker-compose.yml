@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ems
+      POSTGRES_PASSWORD: ems
+      POSTGRES_DB: ems
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ems -d ems"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://ems:ems@db:5432/ems
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  jobs:
+    build: ./api
+    command: ["python", "-m", "jobs.scheduler"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://ems:ems@db:5432/ems
+    depends_on:
+      api: { condition: service_healthy }
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    environment:
+      API_URL: http://api:8000
+    ports: ["5173:5173"]
+    volumes:
+      - ./web:/app
+      - web_node_modules:/app/node_modules
+    depends_on: [api]
+
+  # Optional road routing. Prepare data once with scripts/prepare-osrm.sh, set
+  # OSRM_URL=http://osrm:5000 in .env, then: docker compose --profile routing up
+  osrm:
+    image: osrm/osrm-backend:v5.27.1
+    profiles: [routing]
+    command: osrm-routed --algorithm mld /data/massachusetts-latest.osrm
+    volumes: ["./osrm/data:/data"]
+    ports: ["5000:5000"]
+
+volumes:
+  pgdata:
+  web_node_modules:

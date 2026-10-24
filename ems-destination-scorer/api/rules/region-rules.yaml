@@ -1,0 +1,134 @@
+# Regional destination rules (SAMPLE — invented for development, not a real protocol).
+# The regional medical director owns this file. Every score cites `version` and a rule_id,
+# so bump the version on any change and keep the file under code review.
+
+version: "1.4-sample"
+max_recommendations: 3
+
+diversion:
+  rule_id: D-1
+  # MASSACHUSETTS POLICY NOTE: ambulance diversion has been banned statewide since
+  # Jan 1, 2009 (DPH). The only exception is "Code Black": the ED is closed to all
+  # patients because of an internal emergency (105 CMR 170.323; DPH DHCQ-15-04-635).
+  # "Code Help" is a hospital's internal surge plan and does NOT redirect ambulances.
+  # With real MA data, `on_diversion` must mean Code Black only, and the exemptions
+  # below must be reviewed by the medical director. The sample data treats diversion
+  # as routine, which is not realistic for MA. See README "Data sources".
+  # Time-critical specialty patients still go to the capable center when it is on ED diversion.
+  exempt_categories: [trauma, lvo, stemi, burn]
+
+offload:
+  # Live feed:  baseline + per_occupancy_point * max(0, occupancy - occupancy_threshold)
+  #             + per_boarded_patient * boarding + per_unit_en_route * units_en_route
+  # No feed, or feed older than stale_after_minutes:
+  #             historical median + per_unit_en_route * units_en_route
+  occupancy_threshold_pct: 85
+  per_occupancy_point_min: 0.35
+  per_boarded_patient_min: 0.4
+  per_unit_en_route_min: 2.0
+  stale_after_minutes: 5
+  en_route_window_minutes: 90
+
+routing:
+  road_factor: 1.35          # straight-line km -> road km, used only when OSRM is unavailable
+  handling_minutes: 1.5      # load and depart
+  traffic:
+    light:  { fallback_speed_kmh: 45, osrm_multiplier: 1.0 }
+    normal: { fallback_speed_kmh: 32, osrm_multiplier: 1.3 }
+    rush:   { fallback_speed_kmh: 20, osrm_multiplier: 1.8 }
+
+# Multi-patient ranker (rule R-1): suggests destination swaps between two units in
+# transport when trading hospitals lowers severity-weighted minutes to care.
+# Suggestions only; a dispatcher must accept each one.
+ranker:
+  rule_id: R-1
+  # Acuity: 1 = critical, 2 = emergent, 3 = urgent, 4 = non-urgent (sample levels, not a standard)
+  acuity_weights: { 1: 4.0, 2: 2.0, 3: 1.0, 4: 0.5 }
+  default_acuity: { trauma: 1, lvo: 1, stemi: 1, burn: 2, stroke: 2, peds: 2, ob: 3, general: 3 }
+  min_weighted_gain_min: 5        # suggest only if weighted minutes saved >= this
+  max_individual_loss_min: 10     # never make one patient more than this many minutes later
+  min_remaining_drive_min: 4      # unit is too close to its destination to redirect
+  swap_cooldown_min: 15           # a dispatch can't be swapped again this soon
+  position_stale_after_min: 3     # older unit positions fall back to the incident origin
+
+# Each category lists the hospital fields it requires.
+# ops: eq | in | true | lte | gte
+categories:
+  trauma:
+    rule_id: T-1
+    label: Major trauma
+    need: Level I or II trauma center
+    adult_only: true
+    requires:
+      - { field: trauma_level, op: in, value: [1, 2] }
+    qualifies: "Level {trauma_level_roman} trauma center"
+    fail_reason: "No Level I or II trauma designation"
+
+  lvo:
+    rule_id: S-1
+    label: Stroke, LVO signs
+    need: thrombectomy-capable stroke center
+    adult_only: true
+    requires:
+      - { field: stroke_level, op: in, value: [CSC, TSC] }
+    qualifies: "{stroke_name} center"
+    fail_reason: "Not thrombectomy-capable"
+
+  stroke:
+    rule_id: S-2
+    label: Stroke, no LVO signs
+    need: any certified stroke center
+    adult_only: true
+    requires:
+      - { field: stroke_level, op: in, value: [CSC, TSC, PSC, ASR] }
+    qualifies: "{stroke_name} center"
+    fail_reason: "No stroke certification"
+
+  stemi:
+    rule_id: C-1
+    label: STEMI
+    need: hospital with a 24/7 cath lab
+    adult_only: true
+    requires:
+      - { field: pci_24_7, op: "true" }
+    qualifies: "24/7 cath lab"
+    fail_reason: "No 24/7 cath lab"
+
+  burn:
+    rule_id: B-1
+    label: Major burn
+    need: verified burn center
+    adult_only: true
+    requires:
+      - { field: burn_center, op: "true" }
+    qualifies: "Verified burn center"
+    fail_reason: "Not a burn center"
+
+  peds:
+    rule_id: P-1
+    label: Pediatric emergency
+    need: pediatric emergency department
+    adult_only: false
+    requires:
+      - { field: pediatric_ed, op: "true" }
+    qualifies: "Pediatric ED"
+    fail_reason: "No pediatric ED"
+
+  ob:
+    rule_id: O-1
+    label: Labor / obstetric
+    need: labor and delivery unit
+    adult_only: true
+    requires:
+      - { field: labor_delivery, op: "true" }
+    qualifies: "Labor and delivery unit"
+    fail_reason: "No labor and delivery unit"
+
+  general:
+    rule_id: G-1
+    label: General medical
+    need: any adult emergency department
+    adult_only: true
+    requires: []
+    qualifies: "Adult ED"
+    fail_reason: "Not an adult ED"

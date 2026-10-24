@@ -1,0 +1,77 @@
+{
+  "_note": "FICTIONAL hospitals for development. Names, capabilities and figures are invented; locations are approximate neighborhood points in greater Boston. Replace with the real registry before any pilot.",
+  "hospitals": [
+    {
+      "id": "hvw", "name": "Harborview Medical Center", "short_name": "Harborview",
+      "lat": 42.3601, "lon": -71.0589,
+      "trauma_level": 1, "stroke_level": "CSC", "pci_24_7": true, "burn_center": true,
+      "labor_delivery": false, "pediatric_ed": false, "pediatric_only": false,
+      "offload_baseline_min": 6, "historical_offload_min": 14,
+      "status": { "feed": "live", "ed_occupancy_pct": 104, "boarding": 9, "on_diversion": false }
+    },
+    {
+      "id": "lwg", "name": "Longwood General Hospital", "short_name": "Longwood General",
+      "lat": 42.3370, "lon": -71.1060,
+      "trauma_level": 1, "stroke_level": "CSC", "pci_24_7": true, "burn_center": false,
+      "labor_delivery": true, "pediatric_ed": false, "pediatric_only": false,
+      "offload_baseline_min": 7, "historical_offload_min": 16,
+      "status": { "feed": "live", "ed_occupancy_pct": 118, "boarding": 14, "on_diversion": false }
+    },
+    {
+      "id": "lwc", "name": "Longwood Children's Hospital", "short_name": "Longwood Children's",
+      "lat": 42.3335, "lon": -71.1130,
+      "trauma_level": null, "stroke_level": null, "pci_24_7": false, "burn_center": false,
+      "labor_delivery": false, "pediatric_ed": true, "pediatric_only": true,
+      "offload_baseline_min": 4, "historical_offload_min": 9,
+      "status": { "feed": "none", "on_diversion": false }
+    },
+    {
+      "id": "seu", "name": "South End University Hospital", "short_name": "South End University",
+      "lat": 42.3350, "lon": -71.0730,
+      "trauma_level": 1, "stroke_level": "PSC", "pci_24_7": true, "burn_center": false,
+      "labor_delivery": true, "pediatric_ed": true, "pediatric_only": false,
+      "offload_baseline_min": 5, "historical_offload_min": 12,
+      "status": { "feed": "live", "ed_occupancy_pct": 96, "boarding": 6, "on_diversion": false, "age_minutes": 18 }
+    },
+    {
+      "id": "cvh", "name": "Charles Valley Hospital", "short_name": "Charles Valley",
+      "lat": 42.3740, "lon": -71.1180,
+      "trauma_level": 2, "stroke_level": "TSC", "pci_24_7": true, "burn_center": false,
+      "labor_delivery": true, "pediatric_ed": false, "pediatric_only": false,
+      "offload_baseline_min": 4, "historical_offload_min": 9,
+      "status": { "feed": "live", "ed_occupancy_pct": 88, "boarding": 3, "on_diversion": false }
+    },
+    {
+      "id": "mys", "name": "Mystic Regional Hospital", "short_name": "Mystic Regional",
+      "lat": 42.4180, "lon": -71.1060,
+      "trauma_level": null, "stroke_level": "PSC", "pci_24_7": false, "burn_center": false,
+      "labor_delivery": true, "pediatric_ed": false, "pediatric_only": false,
+      "offload_baseline_min": 4, "historical_offload_min": 8,
+      "status": { "feed": "none", "on_diversion": false }
+    },
+    {
+      "id": "nep", "name": "Neponset Community Hospital", "short_name": "Neponset Community",
+      "lat": 42.2850, "lon": -71.0480,
+      "trauma_level": 3, "stroke_level": "PSC", "pci_24_7": true, "burn_center": false,
+      "labor_delivery": true, "pediatric_ed": false, "pediatric_only": false,
+      "offload_baseline_min": 4, "historical_offload_min": 10,
+      "status": { "feed": "none", "on_diversion": false }
+    },
+    {
+      "id": "wnh", "name": "West Newton Hospital", "short_name": "West Newton",
+      "lat": 42.3480, "lon": -71.2270,
+      "trauma_level": null, "stroke_level": "PSC", "pci_24_7": true, "burn_center": false,
+      "labor_delivery": true, "pediatric_ed": false, "pediatric_only": false,
+      "offload_baseline_min": 4, "historical_offload_min": 7,
+      "status": { "feed": "live", "ed_occupancy_pct": 72, "boarding": 1, "on_diversion": false }
+    },
+    {
+      "id": "bay", "name": "Bayside Medical Center", "short_name": "Bayside",
+      "lat": 42.4050, "lon": -71.0200,
+      "trauma_level": null, "stroke_level": "ASR", "pci_24_7": false, "burn_center": false,
+      "labor_delivery": false, "pediatric_ed": false, "pediatric_only": false,
+      "offload_baseline_min": 4, "historical_offload_min": 11,
+      "status": { "feed": "none", "on_diversion": true }
+    }
+  ]
+}
