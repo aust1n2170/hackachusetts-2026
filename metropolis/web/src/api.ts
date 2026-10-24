@@ -32,6 +32,19 @@ export interface Recommendation {
 
 export interface Excluded { hospital_id: string; short_name: string; rule_id: string; reason: string }
 
+export interface Baseline {
+  hospital_id: string;
+  short_name: string;
+  minutes_drive: number;
+  minutes_offload: number;
+  minutes_total: number;
+  capable: boolean;
+  reason: string;
+  same_as_top: boolean;
+}
+
+export interface Comparison { nearest_capable: Baseline | null; nearest_ed: Baseline | null }
+
 export interface ScoreResponse {
   audit_id: number;
   rules_version: string;
@@ -42,6 +55,7 @@ export interface ScoreResponse {
   recommendations: Recommendation[];
   ranked_lower: Recommendation[];
   excluded: Excluded[];
+  comparison: Comparison;
 }
 
 export interface Hospital {
@@ -115,6 +129,52 @@ export interface SwapSuggestion {
   decided_at: string | null;
 }
 
+// ---- before vs. after (simulation), mirrors SimulationOut etc. in schemas.py
+
+export interface ScenarioSummary { id: string; title: string; description: string; calls: number }
+export interface SimHospital { id: string; short_name: string; lat: number; lon: number }
+export interface SimCall { id: number; t_min: number; category: string; acuity: number; lat: number; lon: number; label: string }
+export interface SimEvent { t_min: number; hospital_id: string; label: string }
+export interface SimMetrics {
+  assigned: number;
+  unassigned: number;
+  mean: number;
+  median: number;
+  acuity1_mean: number | null;
+  total: number;
+  not_capable: number;
+  peak_en_route: number;
+  peak_hospital: string | null;
+  swaps: number;
+}
+export interface SimAssignment {
+  call_id: number;
+  hospital_id: string;
+  first_hospital_id: string;
+  t_dispatch: number;
+  arrive_at: number;
+  drive: number;
+  offload_at_arrival: number;
+  minutes_to_care: number;
+  capable: boolean;
+  swapped: boolean;
+}
+export interface SimStrategy { id: string; label: string; metrics: SimMetrics; assignments: SimAssignment[]; timeline: Record<string, number>[] }
+export interface Simulation {
+  scenario: string;
+  title: string;
+  description: string;
+  rules_version: string;
+  traffic: Traffic;
+  secondary_transfer_min: number;
+  queue_window_min: number;
+  hospitals: SimHospital[];
+  calls: SimCall[];
+  events: SimEvent[];
+  strategies: SimStrategy[];
+}
+export interface DemoState { enabled: boolean; frozen: boolean; scenario: string | null }
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -145,4 +205,9 @@ export const api = {
     call<SwapSuggestion[]>("/ranker/evaluate", { method: "POST", body: JSON.stringify(body) }),
   acceptSwap: (id: number) => call<SwapSuggestion>(`/ranker/swaps/${id}/accept`, { method: "POST" }),
   declineSwap: (id: number) => call<SwapSuggestion>(`/ranker/swaps/${id}/decline`, { method: "POST" }),
+  scenarios: () => call<ScenarioSummary[]>("/simulate/scenarios"),
+  simulate: (scenario: string) => call<Simulation>("/simulate", { method: "POST", body: JSON.stringify({ scenario }) }),
+  demo: () => call<DemoState>("/demo"),
+  demoLoad: (scenario: string) => call<DemoState>("/demo/load", { method: "POST", body: JSON.stringify({ scenario }) }),
+  demoUnfreeze: () => call<DemoState>("/demo/unfreeze", { method: "POST" }),
 };

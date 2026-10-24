@@ -49,6 +49,8 @@ Categories: `trauma`, `lvo`, `stroke`, `stemi`, `burn`, `peds`, `ob`, `general`.
 | `POST /ranker/evaluate` | Suggest destination swaps between units in transport (rule R-1); writes suggestions |
 | `POST /ranker/swaps/{id}/accept` | Re-validate and apply a swap to both dispatches |
 | `POST /ranker/swaps/{id}/decline` | Decline a swap; it isn't suggested again |
+| `GET /simulate/scenarios`, `POST /simulate` | Before-vs-after surge replay (modeled; writes nothing) |
+| `GET /demo`, `POST /demo/load`, `POST /demo/unfreeze` | Demo mode, only when `DEMO_MODE=true` |
 
 ## Layout
 
@@ -58,6 +60,8 @@ api/
     main.py         FastAPI endpoints
     scoring.py      Pure scoring logic (capability filter, diversion, offload model, ranking)
     ranker.py       Pure multi-patient ranker: destination swaps between units (rule R-1)
+    compare.py      Pure baselines: nearest capable hospital and nearest ED
+    simulation.py   Pure surge replay: four strategies, one outcome model
     rules.py        Loads and validates rules/region-rules.yaml
     routing.py      OSRM drive times, straight-line fallback
     models.py       Postgres/PostGIS tables: hospitals, hospital_status, dispatches, score_audit, swap_suggestions
@@ -68,7 +72,8 @@ api/
     connectors.py   Simulated live feed + stubs for the regional diversion system and hospital partner feeds
   rules/region-rules.yaml   Protocol rules the medical director signs off
   data/sample_hospitals.json
-  tests/test_scoring.py, tests/test_ranker.py
+  data/scenarios/surge.json     Scripted surge for the before-vs-after replay
+  tests/                        test_scoring, test_ranker, test_compare, test_simulation
 web/                React + Vite + Leaflet front end (calls the API through /api)
 scripts/prepare-osrm.sh     Builds Massachusetts road routing data
 docker-compose.yml
@@ -97,6 +102,22 @@ Each patient is scored on their own when the unit is sent. The ranker then looks
 The `jobs` service moves simulated unit positions toward their destinations every tick, standing in for CAD/AVL.
 
 `init_db()` adds the new `dispatches` columns to existing databases (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`) until Alembic replaces it.
+
+## Before vs. after
+
+Metropolis exists to take the hospital choice off the dispatcher's memory. Three features make the difference visible.
+
+**On every call.** `/score` returns `comparison`: the nearest hospital that can treat the patient (today's protocol choice) and the nearest ED of any kind, scored with the same drive and wait model. The console shows "Today · nearest capable" next to the Metropolis pick and the minutes saved, and warns when the closest ED can't treat the patient.
+
+**Surge replay.** "Before vs. after" in the console (or `POST /simulate {"scenario":"surge"}`) runs a scripted burst of calls (`api/data/scenarios/surge.json`: 16 calls in 15 minutes around Fenway and Longwood) through four strategies: nearest ED, nearest capable, Metropolis, and Metropolis + swaps. Every strategy is measured the same way at arrival: time on the road + ED offload wait, counting ambulances queued ahead of you, + a 45-minute transfer if the hospital can't treat the patient. Metropolis isn't graded on its own prediction. Open http://localhost:5173/?replay=surge to run it on load.
+
+Current result: Metropolis averages 24.4 min to care versus 29.5 for nearest capable (5.1 min faster per patient, 81 patient-minutes over 16 calls), critical patients 2.1 min faster, and the busiest ED gets 7 ambulances instead of 9. Nearest ED sends 2 patients to hospitals that can't treat them. Some individual patients are slower under Metropolis; the per-call table shows them.
+
+These are **modeled figures** on fictional hospitals with straight-line drive times. They show how the logic behaves, not real-world outcomes.
+
+**Demo mode.** With `DEMO_MODE=true` (set in `.env.example`), a bar under the header loads the scenario's hospital state into the live console and freezes the simulated feed, so every demo take shows the same numbers. "Unfreeze feeds" resumes the random feed. API: `GET /demo`, `POST /demo/load {"scenario":"surge"}`, `POST /demo/unfreeze`.
+
+> **Security:** `/demo/load` deletes all dispatches and swap suggestions, and the API has no authentication. Keep `DEMO_MODE=false` on any server others can reach.
 
 ## Ambulance diversion policy (Massachusetts)
 

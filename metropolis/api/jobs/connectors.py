@@ -14,7 +14,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.models import Dispatch, Hospital, HospitalStatus
+from app.models import DemoState, Dispatch, Hospital, HospitalStatus
 from app.routing import haversine_km
 
 log = logging.getLogger(__name__)
@@ -46,9 +46,15 @@ class SimulatedLiveFeed(Connector):
         if not settings.simulate_feeds:
             return []
         skip = {s.strip() for s in settings.simulate_stale_ids.split(",") if s.strip()}
+        demo = session.get(DemoState, 1)
+        frozen = bool(demo and demo.frozen)
         out = []
         for st in session.scalars(select(HospitalStatus).where(HospitalStatus.feed == "live")):
             if st.hospital_id in skip:
+                continue
+            if frozen:
+                # Demo mode: keep the scripted values, only refresh the timestamp so the feed stays live.
+                out.append(StatusUpdate(st.hospital_id))
                 continue
             occ = min(140.0, max(55.0, (st.ed_occupancy_pct or 85) + random.uniform(-3, 3)))
             board = max(0, (st.boarding or 0) + random.choice([-1, 0, 0, 1]))

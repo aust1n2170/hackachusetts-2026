@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMapEvents } from "react-leaflet";
-import { api, type Category, type Dispatch, type Hospital, type Recommendation, type ScoreResponse, type SwapSide, type SwapSuggestion, type Traffic } from "./api";
+import { api, type Category, type DemoState, type Dispatch, type Hospital, type Recommendation, type ScoreResponse, type SwapSide, type SwapSuggestion, type Traffic } from "./api";
+import Simulation from "./Simulation";
 
 interface Place { label: string; lat: number; lon: number }
 
@@ -37,6 +38,42 @@ function OffloadChip({ r }: { r: Recommendation }) {
   return <span className="chip warn">No live feed · historical delay</span>;
 }
 
+/** "Without Metropolis" vs "Metropolis" for the current call. */
+function ComparisonStrip({ result }: { result: ScoreResponse }) {
+  const base = result.comparison.nearest_capable;
+  const ed = result.comparison.nearest_ed;
+  const top = result.recommendations[0];
+  if (!base || !top) return null;
+  const saved = base.minutes_total - top.minutes_total;
+  return (
+    <div className="compare" aria-label="Comparison with the nearest capable hospital">
+      {base.same_as_top ? (
+        <p><b>Metropolis agrees</b> with the nearest capable hospital, {base.short_name}: {top.minutes_total} min to care.</p>
+      ) : (
+        <div className="compare-grid">
+          <div>
+            <span className="label">Today · nearest capable</span>
+            <div className="compare-pick">{base.short_name} · <b>{base.minutes_total} min</b></div>
+            <small>{base.minutes_drive} drive + {base.minutes_offload} ED wait</small>
+          </div>
+          <div>
+            <span className="label">Metropolis</span>
+            <div className="compare-pick">{top.short_name} · <b>{top.minutes_total} min</b></div>
+            <small>{top.minutes_drive} drive + {top.minutes_offload} ED wait</small>
+          </div>
+          <div className={`compare-saved${saved > 0 ? " pos" : ""}`}>
+            <span className="label">Difference</span>
+            <div className="compare-pick"><b>{saved > 0 ? `Saves ${saved} min` : saved < 0 ? `${-saved} min slower` : "Same time"}</b></div>
+          </div>
+        </div>
+      )}
+      {ed && !ed.capable && (
+        <p className="compare-warn">Closest ED, {ed.short_name} ({ed.minutes_drive} min drive), can't treat this patient: {ed.reason}.</p>
+      )}
+    </div>
+  );
+}
+
 function SwapSideRow({ s, nameOf }: { s: SwapSide; nameOf: (id: string) => string }) {
   const delta = s.minutes_after - s.minutes_before;
   return (
@@ -64,6 +101,7 @@ export default function App() {
   const [unitNo, setUnitNo] = useState(1);
   const [acuity, setAcuity] = useState<number | null>(null); // null = category default
   const [swaps, setSwaps] = useState<SwapSuggestion[]>([]);
+  const [demo, setDemo] = useState<DemoState | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -87,6 +125,7 @@ export default function App() {
     api.rules()
       .then((r) => { setCategories(r.categories); setRulesVersion(r.version); })
       .catch((e) => setError(`Can't reach the API. Is it running on port 8000? (${e.message})`));
+    api.demo().then(setDemo).catch(() => setDemo(null));
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
   // Feed jobs update hospital status in the background; poll so the screen follows.
@@ -114,6 +153,17 @@ export default function App() {
         acuity: patientAcuity, origin_lat: place.lat, origin_lon: place.lon,
       });
       setUnitNo((n) => n + 1);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function demoAction(load: boolean) {
+    if (load && !window.confirm("Load the demo scenario? This deletes all dispatches and swap suggestions and freezes the simulated hospital feed.")) return;
+    try {
+      setDemo(load ? await api.demoLoad("surge") : await api.demoUnfreeze());
+      setUnitNo(1);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -148,6 +198,17 @@ export default function App() {
       </header>
 
       {error && <div className="error" role="alert">{error}</div>}
+
+      {demo?.enabled && (
+        <div className="demo-bar" role="region" aria-label="Demo mode">
+          <span className="label">Demo mode</span>
+          <span className="grow" aria-live="polite">
+            {demo.frozen ? `Hospital feeds frozen at scenario "${demo.scenario}".` : "Simulated hospital feeds are changing every minute."}
+          </span>
+          <button className="btn" onClick={() => demoAction(true)}>{demo.frozen ? "Reload scenario" : "Load demo scenario"}</button>
+          {demo.frozen && <button className="btn" onClick={() => demoAction(false)}>Unfreeze feeds</button>}
+        </div>
+      )}
 
       <div className="grid">
         <section className="panel">
@@ -258,6 +319,7 @@ export default function App() {
                 Rule <code>{result.rule_id}</code>: <b>{cat.label}</b> goes to a {result.need}. Routing: {result.routing_source === "osrm" ? "OSRM road network" : "straight-line estimate"}.
               </p>
             )}
+            {result && <ComparisonStrip result={result} />}
             <div className="recs">
               {result && top.length === 0 && (
                 <div className="rec first"><b>No hospital meets rule {result.rule_id}.</b> Protocol fallback: nearest open ED, contact medical control.</div>
@@ -366,6 +428,8 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      <Simulation />
 
       <section className="panel">
         <div className="panel-head"><h2>Hospital status board</h2><span className="label">Changes are saved to the API</span></div>

@@ -87,6 +87,12 @@ Invariants to keep:
 - **Hysteresis.** Only suggest when the gain exceeds a configurable threshold, and avoid re-swapping the same units, so crews aren't thrashed. Threshold and acuity weights belong in the YAML.
 - **Suggest, don't auto-apply**, and audit every suggestion and its acceptance like `score_audit`.
 
+## Before vs. after (compare.py, simulation.py)
+
+- The "today" baseline is **nearest capable** (closest hospital passing the category rule and D-1): a good dispatcher following protocol. **Nearest ED** is the weak baseline. Don't compare Metropolis only against nearest ED; that overstates the benefit.
+- The replay measures every strategy with one outcome model **at arrival** (road time + offload with ambulances queued ahead + transfer penalty if incapable). Never score Metropolis with its own dispatch-time prediction; that's circular.
+- Scenario figures are modeled on fictional hospitals. Any UI, README or pitch text must say so. Don't tune a scenario just to make Metropolis or swaps look better; record what was tried in the spec.
+
 ## When changing policy
 
 Prefer editing `region-rules.yaml` over code. On any change to it: **bump `version`**, add/adjust a case in `tests/test_scoring.py`, and remember the file is medical-director-owned and under code review. The sample protocol is `not a real protocol` — keep the "sample / not for clinical use" framing in any UI.

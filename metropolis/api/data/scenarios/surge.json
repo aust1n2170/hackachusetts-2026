@@ -1,0 +1,37 @@
+{
+  "id": "surge",
+  "title": "Friday evening surge, Boston",
+  "description": "16 calls in 15 minutes, most around Fenway and Longwood. The closest big hospital, Longwood General, is already crowded (118% occupancy, 14 boarding). Bayside is closed to ambulances (Code Black). South End University's feed is stale. FICTIONAL hospitals and calls.",
+  "traffic": "normal",
+  "assumptions": {
+    "secondary_transfer_min": 45,
+    "queue_window_min": 15,
+    "_note": "Modeling assumptions, not measured figures. secondary_transfer_min: added when a patient reaches a hospital that can't treat them and must be transferred. queue_window_min: an ambulance that reached the same ED this recently is still ahead of you in the offload queue."
+  },
+  "statuses": {
+    "hvw": { "feed": "live", "ed_occupancy_pct": 104, "boarding": 9, "on_diversion": false },
+    "lwg": { "feed": "live", "ed_occupancy_pct": 118, "boarding": 14, "on_diversion": false },
+    "seu": { "feed": "live", "ed_occupancy_pct": 96, "boarding": 6, "on_diversion": false, "age_minutes": 18 },
+    "cvh": { "feed": "live", "ed_occupancy_pct": 88, "boarding": 3, "on_diversion": false },
+    "wnh": { "feed": "live", "ed_occupancy_pct": 72, "boarding": 1, "on_diversion": false },
+    "bay": { "feed": "none", "on_diversion": true }
+  },
+  "calls": [
+    { "id": 1,  "t_min": 0,  "category": "stemi",   "acuity": 1, "lat": 42.3467, "lon": -71.0972, "label": "Fenway" },
+    { "id": 2,  "t_min": 1,  "category": "general", "acuity": 3, "lat": 42.3296, "lon": -71.1062, "label": "Mission Hill" },
+    { "id": 3,  "t_min": 2,  "category": "trauma",  "acuity": 1, "lat": 42.3326, "lon": -71.1167, "label": "Brookline Village" },
+    { "id": 4,  "t_min": 3,  "category": "stroke",  "acuity": 2, "lat": 42.3503, "lon": -71.0810, "label": "Back Bay" },
+    { "id": 5,  "t_min": 4,  "category": "general", "acuity": 3, "lat": 42.3489, "lon": -71.0952, "label": "Kenmore Square" },
+    { "id": 6,  "t_min": 5,  "category": "lvo",     "acuity": 1, "lat": 42.3097, "lon": -71.1151, "label": "Jamaica Plain" },
+    { "id": 7,  "t_min": 6,  "category": "stemi",   "acuity": 1, "lat": 42.4251, "lon": -71.0662, "label": "Malden Center" },
+    { "id": 8,  "t_min": 7,  "category": "general", "acuity": 4, "lat": 42.3539, "lon": -71.1337, "label": "Allston" },
+    { "id": 9,  "t_min": 8,  "category": "ob",      "acuity": 3, "lat": 42.3290, "lon": -71.0840, "label": "Nubian Square" },
+    { "id": 10, "t_min": 9,  "category": "trauma",  "acuity": 1, "lat": 42.3410, "lon": -71.0770, "label": "South End" },
+    { "id": 11, "t_min": 10, "category": "general", "acuity": 3, "lat": 42.3420, "lon": -71.1210, "label": "Coolidge Corner" },
+    { "id": 12, "t_min": 11, "category": "stemi",   "acuity": 2, "lat": 42.3380, "lon": -71.1000, "label": "Longwood" },
+    { "id": 13, "t_min": 12, "category": "general", "acuity": 3, "lat": 42.3450, "lon": -71.1000, "label": "Fenway" },
+    { "id": 14, "t_min": 13, "category": "burn",    "acuity": 2, "lat": 42.3480, "lon": -71.0850, "label": "Back Bay" },
+    { "id": 15, "t_min": 14, "category": "general", "acuity": 4, "lat": 42.3150, "lon": -71.1100, "label": "Jamaica Plain" },
+    { "id": 16, "t_min": 15, "category": "lvo",     "acuity": 1, "lat": 42.3480, "lon": -71.1530, "label": "Brighton" }
+  ]
+}

@@ -9,6 +9,8 @@ metropolis/
       main.py                   FastAPI endpoints; wires repository + routing + scoring; writes audit
       scoring.py                PURE scoring: capability filter, diversion, offload model, ranking
       ranker.py                 PURE multi-patient ranker: destination swaps between units (rule R-1)
+      compare.py                PURE baselines: nearest capable hospital, nearest ED (the "today" choice)
+      simulation.py             PURE surge replay: 4 strategies, one outcome model measured at arrival
       rules.py                  Loads/validates region-rules.yaml into typed frozen dataclasses
       routing.py                OSRM drive-time matrix; straight-line haversine fallback
       models.py                 SQLAlchemy/PostGIS tables: hospitals, hospital_status, dispatches, score_audit

@@ -111,3 +111,14 @@ class SwapSuggestion(Base):
     weighted_gain: Mapped[float] = mapped_column(Float)
     pareto: Mapped[bool] = mapped_column(Boolean, default=False)
     detail: Mapped[dict] = mapped_column(JSONB)                         # per-side minutes, acuity, sources
+
+
+class DemoState(Base):
+    """Single row (id=1). When frozen, the simulated feed keeps hospital values fixed."""
+
+    __tablename__ = "demo_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    frozen: Mapped[bool] = mapped_column(Boolean, default=False)
+    scenario: Mapped[str | None] = mapped_column(String(40))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

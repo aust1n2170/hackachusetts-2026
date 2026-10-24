@@ -14,7 +14,7 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import delete
 
 from .db import SessionLocal, init_db
-from .models import Dispatch, Hospital, HospitalStatus, ScoreAudit, SwapSuggestion
+from .models import DemoState, Dispatch, Hospital, HospitalStatus, ScoreAudit, SwapSuggestion
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "sample_hospitals.json"
 REGISTRY_FIELDS = (
@@ -30,7 +30,7 @@ def seed(reset: bool = False) -> int:
     added = 0
     with SessionLocal() as session:
         if reset:
-            for model in (SwapSuggestion, Dispatch, ScoreAudit, HospitalStatus, Hospital):
+            for model in (SwapSuggestion, Dispatch, ScoreAudit, HospitalStatus, DemoState, Hospital):
                 session.execute(delete(model))
         for r in rows:
             h = session.get(Hospital, r["id"])

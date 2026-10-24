@@ -47,6 +47,24 @@ class ExcludedOut(BaseModel):
     reason: str
 
 
+class BaselineOut(BaseModel):
+    hospital_id: str
+    short_name: str
+    minutes_drive: int
+    minutes_offload: int
+    minutes_total: int
+    capable: bool
+    reason: str
+    same_as_top: bool
+
+
+class ComparisonOut(BaseModel):
+    """What a dispatcher would pick today, scored with the same model."""
+
+    nearest_capable: BaselineOut | None
+    nearest_ed: BaselineOut | None
+
+
 class ScoreResponse(BaseModel):
     audit_id: int
     rules_version: str
@@ -57,6 +75,7 @@ class ScoreResponse(BaseModel):
     recommendations: list[RecommendationOut]
     ranked_lower: list[RecommendationOut]
     excluded: list[ExcludedOut]
+    comparison: ComparisonOut
 
 
 class CategoryOut(BaseModel):
@@ -157,3 +176,103 @@ class SwapSuggestionOut(BaseModel):
     routing_source: str
     created_at: datetime
     decided_at: datetime | None
+
+
+# ---------------------------------------------------------------- simulation (before vs. after)
+
+ScenarioId = Field(pattern=r"^[a-z0-9_-]{1,40}$", examples=["surge"])
+
+
+class ScenarioOut(BaseModel):
+    id: str
+    title: str
+    description: str
+    calls: int
+
+
+class SimulateIn(BaseModel):
+    scenario: str = ScenarioId
+
+
+class SimHospitalOut(BaseModel):
+    id: str
+    short_name: str
+    lat: float
+    lon: float
+
+
+class SimCallOut(BaseModel):
+    id: int
+    t_min: float
+    category: str
+    acuity: int
+    lat: float
+    lon: float
+    label: str
+
+
+class SimEventOut(BaseModel):
+    t_min: float
+    hospital_id: str
+    label: str
+
+
+class SimMetricsOut(BaseModel):
+    assigned: int
+    unassigned: int
+    mean: float
+    median: float
+    acuity1_mean: float | None
+    total: int
+    not_capable: int
+    peak_en_route: int
+    peak_hospital: str | None
+    swaps: int
+
+
+class SimAssignmentOut(BaseModel):
+    call_id: int
+    hospital_id: str
+    first_hospital_id: str
+    t_dispatch: float
+    arrive_at: float
+    drive: int
+    offload_at_arrival: int
+    minutes_to_care: int
+    capable: bool
+    swapped: bool
+
+
+class SimStrategyOut(BaseModel):
+    id: str
+    label: str
+    metrics: SimMetricsOut
+    assignments: list[SimAssignmentOut]
+    timeline: list[dict[str, int]]
+
+
+class SimulationOut(BaseModel):
+    scenario: str
+    title: str
+    description: str
+    rules_version: str
+    traffic: str
+    secondary_transfer_min: float
+    queue_window_min: float
+    hospitals: list[SimHospitalOut]
+    calls: list[SimCallOut]
+    events: list[SimEventOut]
+    strategies: list[SimStrategyOut]
+
+
+# ---------------------------------------------------------------- demo mode
+
+
+class DemoLoadIn(BaseModel):
+    scenario: str = ScenarioId
+
+
+class DemoOut(BaseModel):
+    enabled: bool
+    frozen: bool
+    scenario: str | None

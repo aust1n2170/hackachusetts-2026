@@ -17,5 +17,10 @@ class Settings(BaseSettings):
     simulate_stale_ids: str = "seu"   # hospitals whose simulated feed is left to go stale
     feed_interval_seconds: int = 60
 
+    # Before-vs-after replay scenarios, and demo mode (scripted state + frozen feed).
+    # Demo endpoints can wipe dispatches; the API has no auth, so keep this off anywhere public.
+    scenarios_dir: str = "data/scenarios"
+    demo_mode: bool = False
+
 
 settings = Settings()

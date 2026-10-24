@@ -2,22 +2,28 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from . import repository
+from .compare import Baseline, nearest_capable, nearest_ed
 from .config import settings
 from .db import get_session
-from .models import Dispatch, Hospital, HospitalStatus, ScoreAudit, SwapSuggestion
+from .models import DemoState, Dispatch, Hospital, HospitalStatus, ScoreAudit, SwapSuggestion
 from .ranker import PatientSide, SwapCandidate, find_swaps
 from .routing import drive_minutes
 from .rules import Rules, load_rules
 from .schemas import (
+    BaselineOut,
     CategoryOut,
+    ComparisonOut,
+    DemoLoadIn,
+    DemoOut,
     DispatchIn,
     DispatchOut,
     ExcludedOut,
@@ -27,14 +33,24 @@ from .schemas import (
     RankerEvaluateIn,
     RecommendationOut,
     RulesOut,
+    ScenarioOut,
     ScoreRequest,
     ScoreResponse,
+    SimAssignmentOut,
+    SimCallOut,
+    SimEventOut,
+    SimHospitalOut,
+    SimMetricsOut,
+    SimStrategyOut,
+    SimulateIn,
+    SimulationOut,
     StatusUpdate,
     SwapSideOut,
     SwapSuggestionOut,
     Traffic,
 )
 from .scoring import HospitalSnapshot, Recommendation, predict_offload, score
+from .simulation import STRATEGIES, load_scenario, run_all
 
 
 @asynccontextmanager
@@ -126,6 +142,16 @@ async def post_score(
     hospitals = repository.load_snapshots(session, rules, now, req.lat, req.lon, settings.search_radius_km)
     minutes, source = await drive_minutes(req.lat, req.lon, hospitals, req.traffic, rules)
     result = score(hospitals, req.category, minutes, rules, now)
+    top_id = result.recommendations[0].hospital.id if result.recommendations else None
+
+    def base_out(b: Baseline | None) -> BaselineOut | None:
+        if b is None:
+            return None
+        return BaselineOut(
+            hospital_id=b.hospital.id, short_name=b.hospital.short_name,
+            minutes_drive=b.minutes_drive, minutes_offload=b.minutes_offload, minutes_total=b.minutes_total,
+            capable=b.capable, reason=b.reason, same_as_top=b.hospital.id == top_id,
+        )
 
     body = dict(
         rules_version=result.rules_version,
@@ -139,11 +165,15 @@ async def post_score(
             ExcludedOut(hospital_id=x.hospital.id, short_name=x.hospital.short_name, rule_id=x.rule_id, reason=x.reason)
             for x in result.excluded
         ],
+        comparison=ComparisonOut(
+            nearest_capable=base_out(nearest_capable(hospitals, req.category, minutes, rules, now)),
+            nearest_ed=base_out(nearest_ed(hospitals, req.category, minutes, rules, now)),
+        ),
     )
     audit = ScoreAudit(
         rules_version=result.rules_version,
         request=req.model_dump(),
-        response={k: (v if isinstance(v, str) else [m.model_dump() for m in v]) for k, v in body.items()},
+        response=ScoreResponse(audit_id=0, **body).model_dump(mode="json", exclude={"audit_id"}),
     )
     session.add(audit)
     session.commit()
@@ -376,3 +406,111 @@ def ranker_decline(swap_id: int, session: Session = Depends(get_session)) -> Swa
     row.status, row.decided_at = "declined", utcnow()
     session.commit()
     return swap_out(row)
+
+
+# ---------------------------------------------------------------- before vs. after (simulation)
+
+
+def scenario_path(scenario_id: str) -> Path:
+    # ids are validated by the schema pattern ([a-z0-9_-]); still resolve inside the folder only
+    base = Path(settings.scenarios_dir).resolve()
+    p = (base / f"{scenario_id}.json").resolve()
+    if p.parent != base or not p.is_file():
+        raise HTTPException(404, f"No scenario {scenario_id!r}")
+    return p
+
+
+@app.get("/simulate/scenarios", response_model=list[ScenarioOut])
+def list_scenarios() -> list[ScenarioOut]:
+    out = []
+    for p in sorted(Path(settings.scenarios_dir).glob("*.json")):
+        sc = load_scenario(p)
+        out.append(ScenarioOut(id=sc.id, title=sc.title, description=sc.description, calls=len(sc.calls)))
+    return out
+
+
+@app.post("/simulate", response_model=SimulationOut)
+def run_simulation(
+    body: SimulateIn, session: Session = Depends(get_session), rules: Rules = Depends(get_rules)
+) -> SimulationOut:
+    """Replay a scripted surge through today's strategies and Metropolis. Modeled, not observed;
+    uses the scenario's hospital state and straight-line drive times. Writes nothing."""
+    sc = load_scenario(scenario_path(body.scenario))
+    now = utcnow()
+    registry = repository.load_snapshots(session, rules, now)
+    results = run_all(sc, registry, rules, now)
+    calls = sorted(sc.calls, key=lambda c: (c.t_min, c.id))
+    return SimulationOut(
+        scenario=sc.id, title=sc.title, description=sc.description, rules_version=rules.version,
+        traffic=sc.traffic, secondary_transfer_min=sc.secondary_transfer_min, queue_window_min=sc.queue_window_min,
+        hospitals=[SimHospitalOut(id=h.id, short_name=h.short_name, lat=h.lat, lon=h.lon) for h in registry],
+        calls=[SimCallOut(**c.__dict__) for c in calls],
+        events=[SimEventOut(t_min=e.t_min, hospital_id=e.hospital_id, label=e.label) for e in sc.events],
+        strategies=[
+            SimStrategyOut(
+                id=r.strategy, label=STRATEGIES[r.strategy], metrics=SimMetricsOut(**r.metrics.__dict__),
+                assignments=[
+                    SimAssignmentOut(
+                        call_id=a.call.id, hospital_id=a.hospital_id, first_hospital_id=a.first_hospital_id,
+                        t_dispatch=a.t_dispatch, arrive_at=round(a.arrive_at, 2), drive=a.drive,
+                        offload_at_arrival=a.offload_at_arrival, minutes_to_care=a.minutes_to_care,
+                        capable=a.capable, swapped=a.swapped,
+                    )
+                    for a in sorted(r.assignments, key=lambda a: (a.t_dispatch, a.call.id))
+                ],
+                timeline=r.timeline,
+            )
+            for r in results
+        ],
+    )
+
+
+# ---------------------------------------------------------------- demo mode
+
+
+def require_demo() -> None:
+    if not settings.demo_mode:
+        raise HTTPException(404, "Demo mode is off (set DEMO_MODE=true)")
+
+
+def demo_out(session: Session) -> DemoOut:
+    st = session.get(DemoState, 1)
+    return DemoOut(enabled=settings.demo_mode, frozen=bool(st and st.frozen), scenario=st.scenario if st else None)
+
+
+@app.get("/demo", response_model=DemoOut)
+def get_demo(session: Session = Depends(get_session)) -> DemoOut:
+    return demo_out(session)
+
+
+@app.post("/demo/load", response_model=DemoOut, dependencies=[Depends(require_demo)])
+def demo_load(body: DemoLoadIn, session: Session = Depends(get_session)) -> DemoOut:
+    """Put the live console in the scenario's hospital state and freeze the simulated feed.
+    Deletes all dispatches and swap suggestions (audit rows are kept)."""
+    sc = load_scenario(scenario_path(body.scenario))
+    now = utcnow()
+    session.execute(delete(SwapSuggestion))
+    session.execute(delete(Dispatch))
+    for h in session.scalars(select(Hospital)):
+        s = sc.statuses.get(h.id, {})
+        st = session.get(HospitalStatus, h.id) or HospitalStatus(hospital_id=h.id)
+        st.feed = s.get("feed", "none")
+        st.ed_occupancy_pct = s.get("ed_occupancy_pct")
+        st.boarding = s.get("boarding")
+        st.on_diversion = bool(s.get("on_diversion", False))
+        st.updated_at = now - timedelta(minutes=s.get("age_minutes", 0))
+        session.add(st)
+    demo = session.get(DemoState, 1) or DemoState(id=1)
+    demo.frozen, demo.scenario, demo.updated_at = True, sc.id, now
+    session.add(demo)
+    session.commit()
+    return demo_out(session)
+
+
+@app.post("/demo/unfreeze", response_model=DemoOut, dependencies=[Depends(require_demo)])
+def demo_unfreeze(session: Session = Depends(get_session)) -> DemoOut:
+    demo = session.get(DemoState, 1) or DemoState(id=1)
+    demo.frozen, demo.updated_at = False, utcnow()
+    session.add(demo)
+    session.commit()
+    return demo_out(session)
